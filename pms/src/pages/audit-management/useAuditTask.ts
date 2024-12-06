@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2023-07-14 19:48:59
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-10-01 20:22:37
+ * @LastEditTime: 2024-11-11 20:19:10
  * @Description: 描述
  */
 import { useCRUDService } from '@/hooks';
@@ -35,7 +35,7 @@ export const useAuditTask = <T extends AuditTaskType>(options: Partial<CRUDActio
       entity: record,
     });
   }
-  async function bulkAuditTaskHandler(entity: { list: { tid: number; dataId: string; humanAuditedResult: number; }[] }) {
+  async function bulkAuditTaskHandler(entity: { autoAssignTask: boolean; list: { tid: number; dataId: string; humanAuditedResult: number; }[] }) {
     return await updateServiceHandler(`/hc/task/list`, {
       entity,
     });
@@ -51,6 +51,9 @@ export const useAuditTask = <T extends AuditTaskType>(options: Partial<CRUDActio
   async function getAuditTaskSummaryHandler() {
     return await detailServiceHandler(`/hc/task/summary`);
   }
+  async function getCountdownHandler() {
+    return await detailServiceHandler(`/hc/task/remain_time`);
+  }
   return {
     listHandler,
     detailHandler,
@@ -58,6 +61,7 @@ export const useAuditTask = <T extends AuditTaskType>(options: Partial<CRUDActio
     bulkAuditTaskHandler,
     assignTaskListHandler,
     auditTaskListHandler,
-    getAuditTaskSummaryHandler
+    getAuditTaskSummaryHandler,
+    getCountdownHandler
   };
 };

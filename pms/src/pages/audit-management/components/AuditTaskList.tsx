@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2024-03-21 21:15:20
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-10-01 20:51:36
+ * @LastEditTime: 2024-11-20 18:24:39
  * @Description: Description
  */
 import {
@@ -14,16 +14,15 @@ import {
 } from '@/common/constants';
 import { convertSecondsToMinutesAndSeconds, isEmptyObject } from '@/common/utils';
 import { usePageContext } from '@/context';
-import { useSetting } from '@/pages/settings/common-setting/useSetting';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import { useEmotionCss } from '@ant-design/use-emotion-css';
-import { Access, FormattedMessage } from '@umijs/max';
-import { useAsyncEffect, useUpdate } from 'ahooks';
-import { Button, Col, Flex, Radio, Row, Space, Tag } from 'antd';
+import { Access, FormattedMessage, history } from '@umijs/max';
+import { useUnmount, useUnmountedRef, useUpdate } from 'ahooks';
+import { Button, Col, Flex, Radio, Row, Space, Tag, message } from 'antd';
 import dayjs from 'dayjs';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuditTask } from '../useAuditTask';
 import { ImageForm } from './ImageForm';
 import { VideoPlayerForm } from './VideoPlayerForm';
@@ -54,35 +53,55 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
   const tableFormRef = useRef<ProFormInstance<T>>();
   const countDownRef = useRef<number>(0);
   const dataSourceRef = useRef<T[]>([]);
+  const tableHeightRef = useRef<number>(100);
+  const timeoutTimerRef = useRef<NodeJS.Timeout>();
+  const intervalTimerRef = useRef<NodeJS.Timeout>();
+  const requestRemainTimeRef = useRef<boolean>(false);
+  const unmountedRef = useUnmountedRef();
   const forceUpdate = useUpdate();
-  const { detailHandler: settingDetailHandler } = useSetting();
+  const { listHandler, bulkAuditTaskHandler, getCountdownHandler } = useAuditTask<T>({
+    tableActionRef,
+  });
 
-  useAsyncEffect(async () => {
-    if (showCountDown) {
-      const response = await settingDetailHandler();
-      const { taskFinishTime = 0 } = response;
-      countDownRef.current = Number(taskFinishTime) * 60;
-      startCountDown();
+  const loadDataHandler = async (params: PageParamsType & unknown) => {
+    const result = await listHandler(params);
+    dataSourceRef.current = result.data;
+    if (!requestRemainTimeRef.current && showCountDown) {
+      requestRemainTimeRef.current = true;
+      const response = await getCountdownHandler();
+      const { remainTime = 0 } = response;
+      countDownRef.current = remainTime as number;
+      if (countDownRef.current > 0 && dataSourceRef.current.length > 0) {
+        startCountDown();
+      }
     }
-  }, []);
+    return result;
+  };
 
   const startCountDown = async () => {
-    const timer = setInterval(() => {
-      if (countDownRef.current <= 0) {
-        clearInterval(timer);
-        countDownRef.current = 0;
+    intervalTimerRef.current = setInterval(() => {
+      if (unmountedRef.current) {
+        clearInterval(intervalTimerRef.current);
         return;
       }
-      countDownRef.current = countDownRef.current - 1;
+      if (countDownRef.current <= 0) {
+        countDownRef.current = 0;
+        clearInterval(intervalTimerRef.current);
+        clearTimeout(timeoutTimerRef.current);
+        // timeoutTimerRef.current = setTimeout(() => {
+        //   if (unmountedRef.current) {
+        //     return;
+        //   }
+        //   history.push('/audit-management/collect-task');
+        // }, 1000);
+        return;
+      }
+      countDownRef.current--;
       forceUpdate();
     }, 1000);
   };
 
-  const { listHandler, bulkAuditTaskHandler } = useAuditTask<T>({
-    tableActionRef,
-  });
-
-  const onSubmitHandler = async () => {
+  const onSubmitHandler = async ({ autoAssignTask }: { autoAssignTask: boolean }) => {
     const auditedResult = dataSourceRef.current
       .map((item) => {
         if (item._humanAuditedResult) {
@@ -91,16 +110,39 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         return null;
       })
       .filter((item) => !!item) as { tid: number; dataId: string; humanAuditedResult: number }[];
-    if (auditedResult.length === 0) {
+    if (auditedResult.length !== dataSourceRef.current.length) {
+      console.log('======', auditedResult, dataSourceRef.current);
+      message.error('存在未审核的任务');
       return;
     }
-    await bulkAuditTaskHandler({ list: auditedResult });
-    await tableActionRef.current?.reload();
-    // history.push('/');
+    await bulkAuditTaskHandler({ list: auditedResult, autoAssignTask });
+    if (autoAssignTask) {
+      await tableActionRef.current?.reload();
+    } else if (!product) {
+      history.push('/audit-management/collect-task');
+    }
   };
   const changeAuditedResultHandler = (value: number, record: T) => {
     record._humanAuditedResult = value;
   };
+
+  useEffect(() => {
+    const observer = new ResizeObserver((entries) => {
+      console.log('resize', entries);
+      tableHeightRef.current = entries[0].contentRect.height - 580;
+      tableHeightRef.current = tableHeightRef.current < 100 ? 100 : tableHeightRef.current;
+      forceUpdate();
+    });
+    observer.observe(document.body);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useUnmount(() => {
+    clearInterval(intervalTimerRef.current);
+    clearTimeout(timeoutTimerRef.current);
+  });
 
   const columns: ProColumns<T>[] = (
     [
@@ -116,11 +158,13 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         title: '数据ID',
         align: 'center',
         dataIndex: 'dataId',
+        width: 200,
       },
       {
         title: '生成的视频',
         align: 'center',
         dataIndex: 'videoLink',
+        width: 100,
         search: false,
         render: (_, record) => {
           return (
@@ -141,6 +185,7 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
       {
         title: '来源',
         align: 'center',
+        width: 50,
         dataIndex: 'taskSource',
         valueType: 'select',
         valueEnum: {
@@ -157,9 +202,11 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         align: 'center',
         dataIndex: 'inputText',
         search: false,
+        width: 200,
       },
       {
         title: '翻译',
+        width: 50,
         align: 'center',
         dataIndex: '翻译',
         search: false,
@@ -176,6 +223,7 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         title: '输入图片',
         align: 'center',
         dataIndex: 'inputImageLink',
+        width: 150,
         search: false,
         render: (_, record) => {
           return (
@@ -202,6 +250,7 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
       {
         title: '机审来源',
         align: 'center',
+        width: 50,
         dataIndex: 'machineService',
         search: false,
         renderText: (text) => {
@@ -211,11 +260,13 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
       {
         title: '机审ID',
         align: 'center',
+        width: 80,
         dataIndex: 'machineId',
       },
       {
         title: '机审定帧',
         align: 'center',
+        width: 150,
         dataIndex: 'machineImageLink',
         search: false,
         render: (_, record) => {
@@ -244,6 +295,7 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         title: '机审结果',
         align: 'center',
         dataIndex: 'machineAuditResult',
+        width: 50,
         valueType: 'select',
         valueEnum: {
           3: {
@@ -261,6 +313,7 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         title: '机审标签',
         align: 'center',
         dataIndex: 'label',
+        width: 150,
         search: false,
         render(_, record) {
           if (record.machineAuditResult === MachineAuditResult.AUDITED_PASSED) {
@@ -283,17 +336,19 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         title: '用户ID',
         align: 'center',
         dataIndex: 'userId',
-        search: false,
+        width: 100,
       },
       {
         title: '用户昵称',
         align: 'center',
+        width: 100,
         dataIndex: 'nickName',
       },
       {
         title: '添加时间',
         align: 'center',
         dataIndex: 'createdAt',
+        width: 150,
         valueType: 'dateTimeRange',
         render: (_, record) => {
           return dayjs(+record.createdAt * 1000).format('YYYY-MM-DD HH:mm:ss');
@@ -330,6 +385,12 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
             },
           }
         : null,
+      {
+        title: '审核人员',
+        align: 'center',
+        width: 100,
+        dataIndex: 'assignUserName',
+      },
       AuditStatus.AUDITED === auditedStatus
         ? {
             title: '审核结果',
@@ -351,13 +412,14 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         align: 'center',
         dataIndex: 'option',
         valueType: 'option',
-        render: (_, record) => [
-          <Access key="updateAuditedResult" accessible={auditedStatus === 2}>
+        fixed: 'right',
+        render: (_, record, index) => [
+          <Access key={record.tid + 'updateAuditedResult' + index} accessible={auditedStatus === 2}>
             <Radio.Group onChange={(e) => changeAuditedResultHandler(e.target.value, record)}>
               <Radio value={4}>拒绝</Radio>
             </Radio.Group>
           </Access>,
-          <Access key="audit" accessible={showSubmit}>
+          <Access key={record.tid + 'audit' + index} accessible={showSubmit}>
             <Radio.Group onChange={(e) => changeAuditedResultHandler(e.target.value, record)}>
               <Radio value={3}>通过</Radio>
               <Radio value={4}>拒绝</Radio>
@@ -394,20 +456,22 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
         dateFormatter={(value) => value.format('YYYY-MM-DD HH:mm:ss')}
         toolBarRender={() => [
           <Access key="submitButton" accessible={showSubmit || auditedStatus === 2}>
-            <Button type="primary" onClick={onSubmitHandler}>
+            <Button type="primary" onClick={() => onSubmitHandler({ autoAssignTask: false })}>
               <PlusOutlined />
-              <FormattedMessage id="提交任务" />
+              <FormattedMessage id="提交任务并返回首页" />
+            </Button>
+          </Access>,
+          <Access key="submitButton" accessible={showSubmit || auditedStatus === 2}>
+            <Button type="primary" onClick={() => onSubmitHandler({ autoAssignTask: true })}>
+              <PlusOutlined />
+              <FormattedMessage id="提交任务并继续审核下一轮" />
             </Button>
           </Access>,
         ]}
         params={{ auditedStatus, product }}
-        request={async (params: PageParamsType & unknown) => {
-          const result = await listHandler(params);
-          dataSourceRef.current = result.data;
-          return result;
-        }}
+        request={loadDataHandler}
         columns={columns}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: 'max-content', y: tableHeightRef.current }}
         footer={() => {
           return (
             <Row gutter={[16, 16]}>
@@ -425,12 +489,20 @@ export const AuditTaskList = <T extends AuditTaskType>(props: IAuditTaskListProp
               </Col>
               <Col span={12}>
                 <Flex justify="end">
-                  <Access key="submitButton" accessible={showSubmit || auditedStatus === 2}>
-                    <Button type="primary" onClick={onSubmitHandler}>
-                      <PlusOutlined />
-                      <FormattedMessage id="提交任务" />
-                    </Button>
-                  </Access>
+                  <Space>
+                    <Access key="submitButton" accessible={showSubmit || auditedStatus === 2}>
+                      <Button type="primary" onClick={() => onSubmitHandler({ autoAssignTask: false })}>
+                        <PlusOutlined />
+                        <FormattedMessage id="提交任务并返回首页" />
+                      </Button>
+                    </Access>
+                    <Access key="submitButton" accessible={showSubmit || auditedStatus === 2}>
+                      <Button type="primary" onClick={() => onSubmitHandler({ autoAssignTask: true })}>
+                        <PlusOutlined />
+                        <FormattedMessage id="提交任务并继续审核下一轮" />
+                      </Button>
+                    </Access>
+                  </Space>
                 </Flex>
               </Col>
             </Row>

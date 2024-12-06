@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2023-04-21 22:05:35
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-09-20 21:47:40
+ * @LastEditTime: 2024-10-24 19:56:59
  * @Description: 描述
  */
 // @ts-ignore
@@ -21,7 +21,7 @@ export const useLogin = <T = API.LoginUserType>() => {
         });
         return data;
       } catch (error) {
-        history.push(LOGIN_PATH);
+        history.replace(LOGIN_PATH);
       }
       return {} as T;
     },

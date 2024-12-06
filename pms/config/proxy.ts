@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2023-04-03 20:52:52
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-09-12 20:32:50
+ * @LastEditTime: 2024-11-12 21:02:34
  * @Description: 描述
  */
 /**
@@ -22,7 +22,7 @@ export default {
     // localhost:8000/api/** -> https://preview.pro.ant.design/api/**
     '/api': {
       // 要代理的地址
-      target: 'http://121.40.131.48:8000',
+      target: 'http://120.55.72.53:8000',
       // 配置了这个可以从 http 代理到 https
       // 依赖 origin 的功能可能需要这个，比如 cookie
       changeOrigin: true,

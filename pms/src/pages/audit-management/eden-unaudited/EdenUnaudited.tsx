@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2024-03-21 21:15:20
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-09-30 21:18:12
+ * @LastEditTime: 2024-11-12 11:35:09
  * @Description: Description
  */
 import { AuditStatus } from '@/common/constants';
@@ -20,7 +20,7 @@ export const EdenUnaudited = <T extends AuditTaskType>(): React.ReactNode => {
   return (
     <PageContextProvider value={{ tableActionRef, state, dispatch }}>
       <PageContainer header={{ title: null }}>
-        <AuditTaskList auditedStatus={AuditStatus.UNAUDITED} product={2} showSubmit={true} />
+        <AuditTaskList auditedStatus={AuditStatus.UNAUDITED} product={2} showSubmit={true} showCountDown={true} />
       </PageContainer>
     </PageContextProvider>
   );

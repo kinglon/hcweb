@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2023-04-20 12:01:22
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-09-29 01:02:07
+ * @LastEditTime: 2024-11-01 20:08:42
  * @Description: 描述
  */
 import { CommonReducerAction } from '@/common/constants';
@@ -45,7 +45,7 @@ export const VideoPlayerForm = <T extends AuditTaskType>(): JSX.Element => {
     >
       <ReactPlayer
         url={state.currentRecord?.videoLink}
-        controls={false}
+        controls={true}
         playing={true}
         light={'/images/video_default.png'}
         playIcon={<img src={'/images/play.png'}></img>}

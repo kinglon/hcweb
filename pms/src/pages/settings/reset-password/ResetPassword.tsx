@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2024-03-21 21:15:20
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-09-22 01:12:00
+ * @LastEditTime: 2024-11-14 17:20:41
  * @Description: Description
  */
 import { LockOutlined } from '@ant-design/icons';
@@ -85,7 +85,6 @@ export const ResetPassword = <T extends ResetPasswordType>(): React.ReactNode =>
               },
               {
                 validator: async (_, value, callback) => {
-                  console.log('======', _, value, formRef.current?.getFieldValue('newPassword'));
                   if (formRef.current?.getFieldValue('newPassword') !== value) {
                     throw new Error('两次密码输入不一致');
                   }

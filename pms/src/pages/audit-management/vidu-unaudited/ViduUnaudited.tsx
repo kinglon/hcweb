@@ -20,7 +20,7 @@ export const ViduUnaudited = <T extends AuditTaskType>(): React.ReactNode => {
   return (
     <PageContextProvider value={{ tableActionRef, state, dispatch }}>
       <PageContainer header={{ title: null }}>
-        <AuditTaskList auditedStatus={AuditStatus.UNAUDITED} product={1} showSubmit={true} />
+        <AuditTaskList auditedStatus={AuditStatus.UNAUDITED} product={1} showSubmit={true} showCountDown={true} />
       </PageContainer>
     </PageContextProvider>
   );

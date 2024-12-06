@@ -2,16 +2,17 @@
  * @Author: Semmy Wong
  * @Date: 2024-03-21 21:15:20
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-09-22 01:12:35
+ * @LastEditTime: 2024-11-11 22:12:15
  * @Description: Description
  */
 import { LabelFilter } from '@/common/constants';
 import { useSetting } from '@/pages/settings/common-setting/useSetting';
 import type { ActionType } from '@ant-design/pro-components';
-import { PageContainer, ProForm, ProFormSelect } from '@ant-design/pro-components';
+import { PageContainer, ProForm, ProFormDateTimeRangePicker, ProFormSelect } from '@ant-design/pro-components';
 import { history } from '@umijs/max';
 import { useAsyncEffect } from 'ahooks';
 import { Button, Card } from 'antd';
+import dayjs from 'dayjs';
 import { useRef, useState } from 'react';
 import { useCollectTask } from './useCollectTask';
 
@@ -34,8 +35,14 @@ export const CollectTask = <T extends CollectTaskType>(): React.ReactNode => {
   }, []);
 
   const onFinishHandler = async (values: any) => {
-    const response = await createHandler(values);
-    if (response) {
+    const { label, count, createdAt } = values;
+    const response: any = await createHandler({
+      label,
+      count,
+      createdAtBegin: dayjs(createdAt[0]).unix(),
+      createdAtEnd: dayjs(createdAt[1]).unix(),
+    } as T);
+    if (response.count !== 0 && response.error !== 316) {
       history.push('/audit-management/auditing');
     }
   };
@@ -87,6 +94,11 @@ export const CollectTask = <T extends CollectTaskType>(): React.ReactNode => {
             valueEnum={labels}
             placeholder="请选择领取数量"
             rules={[{ required: true, message: '请选择领取数量' }]}
+          />
+          <ProFormDateTimeRangePicker
+            name="createdAt"
+            label="日期时间"
+            rules={[{ required: true, message: '请选择要领取时间段' }]}
           />
         </ProForm>
       </Card>

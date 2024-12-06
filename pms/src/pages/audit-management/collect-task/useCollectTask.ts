@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2023-07-14 19:48:59
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-09-20 19:48:07
+ * @LastEditTime: 2024-11-11 22:11:12
  * @Description: 描述
  */
 import { useCRUDService } from '@/hooks';
@@ -18,7 +18,7 @@ export const useCollectTask = <T extends CollectTaskType>(options: Partial<CRUDA
   async function createHandler(entity: T) {
     entity.count = Number(entity.count);
     entity.label = Number(entity.label);
-    return await createServiceHandler(`/hc/task/assign`, { entity });
+    return await createServiceHandler(`/hc/task/assign`, { entity }, { needResponse: true });
   }
 
   async function countSummaryHandler() {

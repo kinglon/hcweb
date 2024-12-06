@@ -2,7 +2,7 @@
  * @Author: Semmy Wong
  * @Date: 2023-04-18 22:03:26
  * @LastEditors: Semmy Wong
- * @LastEditTime: 2024-10-07 18:42:30
+ * @LastEditTime: 2024-11-11 22:10:49
  * @Description: 描述
  */
 import { useIntl } from '@umijs/max';
@@ -191,18 +191,19 @@ export const useCRUDService = <T extends Record<string, unknown>>({
     },
     async createHandler<U = T>(
       url: string,
-      { entity, reload, successTip = intl.formatMessage({ id: '添加成功' }) }: CRUDActionOptionType<U> = {},
+      { entity, reload }: CRUDActionOptionType<U> = {},
+      { successTip = intl.formatMessage({ id: '添加成功' }), needResponse = false } = {},
     ) {
       const hide = message.loading(intl.formatMessage({ id: '正在添加中' }));
       try {
-        await create<T>(url, {
+        const response = await create<T>(url, {
           data: { ...entity },
         });
         setCreateModalVisible?.(false);
         createFormRef?.current?.resetFields();
         reload ? reload() : tableActionRef?.current?.reload();
         // message.success(successTip);
-        return true;
+        return needResponse ? response : true;
       } catch (error) {
         return false;
       } finally {
